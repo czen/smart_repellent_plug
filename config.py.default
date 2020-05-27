@@ -1,0 +1,9 @@
+settings = {
+    "token": "e4ioyas89w348oasdg92378asdfgha89",
+    "ip": "192.168.0.1",
+    "mac": "xx-xx-xx-xx-xx-xx",
+    "activePeriod": 60*60,
+    "passivePeriod": 3*60*60,
+    "maxOverallTime": 2 * 60*60,
+    "checkInterval": 60
+}

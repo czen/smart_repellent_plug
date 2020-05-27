@@ -14,3 +14,17 @@ class SmartPlug:
 
     def off(self):
         self.plug.off()
+
+    def status(self):
+        return self.plug.status()
+
+    def isAlive(self):
+        try:
+            s = self.status()
+            return True
+        except:
+            return False
+
+    def isOn(self):
+        return self.plug.status().is_on
+

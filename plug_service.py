@@ -15,13 +15,14 @@ from plug_wrapper import SmartPlug
 from config import settings
 
 class PlugAutomata:
-    def __init__(self):
+    def __init__(self, plugClass):
         self.lastStartTime = 0
         self.lastCheckTime = 0
         self.totalTime = 0
         self.currentActiveTime = 0
         self.currentOffTime = 0
         self.state = "waiting"  # waiting, on, off
+        self.plugClass = plugClass
         self.plug = None
 
     def start(self):
@@ -30,7 +31,7 @@ class PlugAutomata:
     def checkStatus(self):
         if self.plug is None:
             return False
-        return self.plug.status()
+        return self.plug.isAlive()
 
     def gotoWaiting(self):
         self.lastStartTime = 0
@@ -48,7 +49,7 @@ class PlugAutomata:
         self.currentActiveTime = 0
         self.currentOffTime = 0
         self.state = "on"
-        self.plug = SmartPlug()
+        self.plug = self.plugClass()
 
     def updateSpentTime(self):
         currentTime = time.time()
@@ -111,7 +112,7 @@ class PlugService(SMWinservice):
     _svc_description_ = 'schedules xiaomi smart plug on/off after it appears online'
 
     def start(self):
-        self.automata = PlugAutomata()
+        self.automata = PlugAutomata(SmartPlug)
         self.isrunning = True
         self.automata.start()
 

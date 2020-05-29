@@ -14,6 +14,11 @@ from service import SMWinservice
 from plug_wrapper import SmartPlug
 from config import settings
 
+class TimeWrapper:
+    @classmethod
+    def getTime(cls):
+        return round(time.time())
+
 class PlugAutomata:
     def __init__(self, plugClass):
         self.lastStartTime = 0
@@ -21,7 +26,7 @@ class PlugAutomata:
         self.totalTime = 0
         self.currentActiveTime = 0
         self.currentOffTime = 0
-        self.state = "waiting"  # waiting, on, off
+        self.state = "waiting"  # waiting, on, off, standby
         self.plugClass = plugClass
         self.plug = None
 
@@ -42,17 +47,29 @@ class PlugAutomata:
         self.state = "waiting"
         self.plug = None
 
-    def startOver(self):
-        self.lastStartTime = time.time()
+    def gotoStandby(self):
+        self.lastStartTime = 0
+        self.lastCheckTime = 0
         self.totalTime = 0
-        self.lastCheckTime = time.time()
         self.currentActiveTime = 0
         self.currentOffTime = 0
-        self.state = "on"
-        self.plug = self.plugClass()
+        self.state = "standby"
+
+    def startOver(self):
+        try:
+            self.plug = self.plugClass()
+            self.plug.on()
+            self.lastStartTime = TimeWrapper.getTime()
+            self.totalTime = 0
+            self.lastCheckTime = TimeWrapper.getTime()
+            self.currentActiveTime = 0
+            self.currentOffTime = 0
+            self.state = "on"
+        except:
+            self.gotoWaiting()
 
     def updateSpentTime(self):
-        currentTime = time.time()
+        currentTime = TimeWrapper.getTime()
         if self.state == "on":
             self.totalTime = self.totalTime + currentTime - self.lastCheckTime
             self.currentActiveTime = self.currentActiveTime + currentTime - self.lastCheckTime
@@ -60,8 +77,8 @@ class PlugAutomata:
             self.currentOffTime = self.currentOffTime + currentTime - self.lastCheckTime
         self.lastCheckTime = currentTime
 
-    def checkTime(self):
-        currentTime = time.time()
+    def updateTime(self):
+        currentTime = TimeWrapper.getTime()
         diff = currentTime - self.lastCheckTime
         self.lastCheckTime = currentTime
         return diff
@@ -70,17 +87,21 @@ class PlugAutomata:
         self.currentActiveTime = 0
         self.currentOffTime = 0
         self.state = "off"
+        self.plug.off()
 
     def goOn(self):
         self.currentActiveTime = 0
         self.currentOffTime = 0
         self.state = "on"
+        self.plug.on()
 
     def wakeUp(self):
         if self.state == "waiting":
+            self.startOver()
+        if self.state == "standby":
             if not self.checkStatus():
-                self.state = "waiting"
-            else:
+                self.gotoWaiting()
+            if self.plug.isOn():
                 self.startOver()
         elif self.state == "on":
             if not self.checkStatus():
@@ -91,8 +112,12 @@ class PlugAutomata:
                     self.goOff()
                 else:
                     pass
+                if self.totalTime > settings["maxOverallTime"]:
+                    self.goOff()
+                else:
+                    pass
             else:
-                self.gotoWaiting()
+                self.gotoStandby()
         elif self.state == "off":
             if not self.checkStatus():
                 self.gotoWaiting()
@@ -100,7 +125,9 @@ class PlugAutomata:
                 self.startOver()
             else:
                 self.updateSpentTime()
-                if self.currentOffTime > settings["passivePeriod"]:
+                if self.totalTime > settings["maxOverallTime"]:
+                    pass
+                elif self.currentOffTime > settings["passivePeriod"]:
                     self.goOn()
                 else:
                     pass
